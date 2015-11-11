@@ -8,7 +8,6 @@ for i=1:length(ROIs)
     [info2,data2,meta2] = transformIDM_selectROIVoxels(info2,data2,meta2,ROI);
     [info2,data2,meta2] = transformIDM_selectActiveVoxels(info2,data2,meta2,num_per_ROI);
     %[info2,data2,meta2] = transformIDM_avgVoxelSubset(info2,data2,meta2); % sai o day
-    % [info2,data2,meta2] = transformIDM_avgVoxels(info2,data2,meta2);
     if i>1
         [info1,data1,meta1]=transformIDM_mergeMulti(info1,data1,meta1,info2,data2,meta2);
     else

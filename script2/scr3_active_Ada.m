@@ -4,6 +4,8 @@
 % 3:nActive/ROI 
 % 4:avgROIVoxel 
 % 5:avg(nActive/ROI)
+% 6:nActive/ROI & mFDR
+% 7:avgROIVoxel & mFDR
 
 clear; 
 file_name = {'data-starplus-04847-v7', 'data-starplus-04799-v7', 'data-starplus-05710-v7',...
