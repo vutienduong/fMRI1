@@ -1,18 +1,17 @@
 % for each person , length(file_name)
+% this file use FDR and nbayes
 clear; 
 file_name = {'data-starplus-04799-v7', 'data-starplus-04847-v7', 'data-starplus-05710-v7',...
     'data-starplus-04820-v7', 'data-starplus-05675-v7', 'data-starplus-05680-v7'};
 all_acc = [];
-for j=1:3
+for j=1:6
     clearvars -except j file_name all_acc;
     t = cputime;
     load(file_name{j});
     disp(['Complete load : ', file_name{j}]);
 
-    % collect the non-noise and non-fixation trials
     trials=find([info.cond]>1); 
     [info1,data1,meta1]=transformIDM_selectTrials(info,data,meta,trials);
-
     % seperate P1st and S1st trials
     [info1,data1,meta1]=transformIDM_selectROIVoxels(info1,data1,meta1,{'CALC' 'LIPL' 'LT' 'LTRIA' 'LOPER' 'LIPS' 'LDLPFC'});
     [infoP1,dataP1,metaP1]=transformIDM_selectTrials(info1,data1,meta1,find([info1.firstStimulus]=='P'));
@@ -35,82 +34,75 @@ for j=1:3
     examplesS=[examplesS2;examplesS3];
     labelsP=ones(size(examplesP,1),1);
     labelsS=ones(size(examplesS,1),1)+1;
+    
+    % load label AFF (1), NEG (-1) from "aff_neg_data2"
+    [labelsPS2, labelsPS3] = aff_neg_data2();
+    labels   = [labelsPS2'; labelsPS3'; labelsPS2'; labelsPS3'];
+    examples = [examplesP; examplesS];
+    affidx = labels==1;
+    
+    % examplesP now is affirmative, examplesS now is negative
+    examplesP = examples(affidx,:);
+    examplesS = examples(not(affidx),:);
+    
+    % labelsP now is affirmative(1), labelsS now is negative(-1)
+    labelsP=ones(size(examplesP,1),1);
+    labelsS=ones(size(examplesS,1),1)+1;
+
+    % Fisher ===========================
+    numfeat = size(examplesP,2);
+
+    for i=1:numfeat
+        fdr(i)= Fisher(examplesP(:,i),examplesS(:,i));
+    end
 
     examples=[examplesP;examplesS];
     labels=[labelsP;labelsS];
 
-    
+    nf = 300;
+    [fdr,featrank]=sort(fdr,'descend');
+    examplesPR = examplesP(:,featrank); 
+    examplesSR = examplesS(:,featrank);
+    examplesPS = examplesPR(:,1:nf);
+    examplesSS = examplesSR(:,1:nf);
 
     c1 = cvpartition(labelsP,'k',10);
     adb_acc = [];
     num_t_test = 10;
-
-    % use Bayes or Ada here
-    % 1)nbayes(1,2)   2)adaM1(1,2)     3)adaboost(1,-1) 4) knn(1,2)
     
-    classifier = 'knn';
-
+    % 1)nbayes   2)adaM1     3)adaboost
+    classifier = 'nbayes';
+    
     for i=1:num_t_test
         tridx = c1.training(i);
         teidx = c1.test(i);
-
-        examplesP_train = examplesP(tridx,:);
-        examplesS_train = examplesS(tridx,:);
-
-        % Fisher ===========================
-        numfeat = size(examplesP_train,2);
-        for ii=1:numfeat
-            fdr(ii)= Fisher(examplesP_train(:,ii),examplesS_train(:,ii));
-        end
-        [fdr,featrank]=sort(fdr,'descend');
-        % end Fisher ===========================
-
-        % choosing 100 features based on FDR values
-        nf = 50;
-        examplesPR = examplesP(:,featrank); 
-        examplesSR = examplesS(:,featrank);
-        examplesPS = examplesPR(:,1:nf); 
-        examplesSS = examplesSR(:,1:nf);
-
-        % create train set with 100 features based on examplesPS & examplesSS
-        extrain{1,i} = [examplesPS(tridx,:); examplesSS(tridx,:)];
+        extrain{1,i} = [examplesPS(tridx,:);examplesSS(tridx,:)];
         labelstrain{1,i} = [labelsP(tridx,:);labelsS(tridx,:)];
-
-        % create test set with 100 features based on examplesPS & examplesSS
-        extest{1,i} = [examplesPS(teidx,:); examplesSS(teidx,:)];
+        extest{1,i} = [examplesPS(teidx,:);examplesSS(teidx,:)];
         labelstest{1,i} = [labelsP(teidx,:);labelsS(teidx,:)];
-
+        
         % classify
         if strcmp(classifier,'adaM1')
-            adb_acc(i) = util_classifier2(extrain{1,i}, extest{1,i}, labelstrain{1,i}, labelstest{1,i}, 'adaM1');
+            adb_acc(1,i) = util_classifier2(extrain{1,i}, extest{1,i}, labelstrain{1,i}, labelstest{1,i}, 'adaM1');
         elseif strcmp(classifier,'nbayes')
-            adb_acc(i) = util_classifier2(extrain{1,i}, extest{1,i}, labelstrain{1,i}, labelstest{1,i}, 'nbayes');
+            adb_acc(1,i) = util_classifier2(extrain{1,i}, extest{1,i}, labelstrain{1,i}, labelstest{1,i}, 'nbayes');
         elseif strcmp(classifier,'adaboost')
-            adb_acc(i) = util_classifier2(extrain{1,i}, extest{1,i}, labelstrain{1,i}, labelstest{1,i}, 'adaboost');
-        elseif strcmp(classifier,'knn')
-            adb_acc(i) = util_classifier2(extrain{1,i}, extest{1,i}, labelstrain{1,i}, labelstest{1,i}, 'knn');
-            disp(['TEMP accuracy ', num2str(adb_acc(1,i))]);
+            adb_acc(1,i) = util_classifier2(extrain{1,i}, extest{1,i}, labelstrain{1,i}, labelstest{1,i}, 'adaboost');
         end
+        
     end
+    % end Fisher ===========================
     avg_acc = sum(adb_acc)/num_t_test;
     e = cputime - t;
     t = cputime;
     all_acc = [all_acc; avg_acc e];
     disp(['accuracy ', num2str(avg_acc) , ' | processing time ', num2str(e)]);
+    % END 2)=========================
 end
 mean_all = mean(all_acc);
-disp(['AVERAGE ACC ', num2str(mean_all(1))]);
+disp(['AVERAGE ACC', num2str(mean_all(1))]);
 disp(['AVERAGE PROCESSING TIME ', num2str(mean_all(2))]);
-
-
-% ROis, 50, AdaM1(50): 86.25% 34.54s [0.8625;0.9625;0.9250;0.725;0.85;0.85]
-% ROis, 100, AdaM1(50): 87.29% 36.21s [0.8625;0.9750;0.8875;0.725;0.90;0.8875]
-% ROis, 100, adaboost(3000): 89.58% 31.55s [0.9;0.9750;0.9375;0.775;0.8875;0.9]
-% ROis, 50, adaboost(3000): 89.17% 31.48s [0.9;1;0.925;0.7125;0.9375;0.875]
-% ROis, 20, adaboost(3000): 87.29% 31.51s [0.875;0.975;0.9375;0.7250;0.8625;0.8625]
-% ROis, 30, adaboost(3000): 89.17% 31.45s [0.9125;1;0.9125;0.7375;0.9125;0.8750]
-% 100, adaboost(3000): 90.21% 73.38s [0.8875;1;0.95;0.8125;0.8750;0.8875]
-
-
-% 30. knn(3) 86.875% 36.21s [0.862500000000000;0.975000000000000;0.925000000000000;0.662500000000000;0.900000000000000;0.887500000000000]
-% 50. knn(7) 89.79% 32.18s [0.887500000000000;0.987500000000000;0.937500000000000;0.787500000000000;0.925000000000000;0.862500000000000]
+    
+% result
+% 96.25% (100)
+% 96.45% (200)

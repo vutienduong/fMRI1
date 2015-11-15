@@ -13,7 +13,7 @@ for j=1:6
     trials=find([info.cond]>1); 
     [info1,data1,meta1]=transformIDM_selectTrials(info,data,meta,trials);
     % seperate P1st and S1st trials
-    [info2,data2,meta2]=transformIDM_selectROIVoxels(info1,data1,meta1,{'CALC' 'LIPL' 'LT' 'LTRIA' 'LOPER' 'LIPS' 'LDLPFC'});
+    [info1,data1,meta1]=transformIDM_selectROIVoxels(info1,data1,meta1,{'CALC' 'LIPL' 'LT' 'LTRIA' 'LOPER' 'LIPS' 'LDLPFC'});
     [infoP1,dataP1,metaP1]=transformIDM_selectTrials(info1,data1,meta1,find([info1.firstStimulus]=='P'));
     [infoS1,dataS1,metaS1]=transformIDM_selectTrials(info1,data1,meta1,find([info1.firstStimulus]=='S'));
  
@@ -33,7 +33,7 @@ for j=1:6
     examplesP=[examplesP2;examplesP3];
     examplesS=[examplesS2;examplesS3];
     labelsP=ones(size(examplesP,1),1);
-    labelsS=ones(size(examplesS,1),1)+1;
+    labelsS=ones(size(examplesS,1),1) - 2;
 
     % Fisher ===========================
     numfeat = size(examplesP,2);
@@ -45,7 +45,7 @@ for j=1:6
     examples=[examplesP;examplesS];
     labels=[labelsP;labelsS];
 
-    nf = 100;
+    nf = 150;
     [fdr,featrank]=sort(fdr,'descend');
     examplesPR = examplesP(:,featrank); 
     examplesSR = examplesS(:,featrank);
@@ -55,6 +55,7 @@ for j=1:6
     c1 = cvpartition(labelsP,'k',10);
     adb_acc = [];
     num_t_test = 10;
+    classifier = 'adaboost';
     for i=1:num_t_test
         tridx = c1.training(i);
         teidx = c1.test(i);
@@ -62,11 +63,14 @@ for j=1:6
         labelstrain{1,i} = [labelsP(tridx,:);labelsS(tridx,:)];
         extest{1,i} = [examplesPS(teidx,:);examplesSS(teidx,:)];
         labelstest{1,i} = [labelsP(teidx,:);labelsS(teidx,:)];
-
-        [classifier] = trainClassifier(extrain{1,i},labelstrain{1,i},'nbayes');
-        [predictions] = applyClassifier(extest{1,i},classifier);
-        [result,predictedLabels,trace] = summarizePredictions(predictions,classifier,'averageRank',labelstest{1,i});
-        adb_acc(1,i) = 1- result{1,1};
+        
+       if strcmp(classifier,'adaM1')
+            adb_acc(i) = util_classifier2(extrain{1,i}, extest{1,i}, labelstrain{1,i}, labelstest{1,i}, 'adaM1');
+        elseif strcmp(classifier,'nbayes')
+            adb_acc(i) = util_classifier2(extrain{1,i}, extest{1,i}, labelstrain{1,i}, labelstest{1,i}, 'nbayes');
+        elseif strcmp(classifier,'adaboost')
+            adb_acc(i) = util_classifier2(extrain{1,i}, extest{1,i}, labelstrain{1,i}, labelstest{1,i}, 'adaboost');
+       end
     end
     % end Fisher ===========================
     avg_acc = sum(adb_acc)/num_t_test;

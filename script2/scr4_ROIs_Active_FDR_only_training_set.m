@@ -1,9 +1,9 @@
-% for each person , length(file_name)
+% ROIs,250 most active, 100 FDR
 clear; 
 file_name = {'data-starplus-04799-v7', 'data-starplus-04847-v7', 'data-starplus-05710-v7',...
     'data-starplus-04820-v7', 'data-starplus-05675-v7', 'data-starplus-05680-v7'};
 all_acc = [];
-for j=1:3
+for j=1:6
     clearvars -except j file_name all_acc;
     t = cputime;
     load(file_name{j});
@@ -15,6 +15,7 @@ for j=1:3
 
     % seperate P1st and S1st trials
     [info1,data1,meta1]=transformIDM_selectROIVoxels(info1,data1,meta1,{'CALC' 'LIPL' 'LT' 'LTRIA' 'LOPER' 'LIPS' 'LDLPFC'});
+    [info1,data1,meta1] = transformIDM_selectActiveVoxact(info1,data1,meta1,250);
     [infoP1,dataP1,metaP1]=transformIDM_selectTrials(info1,data1,meta1,find([info1.firstStimulus]=='P'));
     [infoS1,dataS1,metaS1]=transformIDM_selectTrials(info1,data1,meta1,find([info1.firstStimulus]=='S'));
  
@@ -38,17 +39,13 @@ for j=1:3
 
     examples=[examplesP;examplesS];
     labels=[labelsP;labelsS];
-
     
-
     c1 = cvpartition(labelsP,'k',10);
     adb_acc = [];
     num_t_test = 10;
 
     % use Bayes or Ada here
-    % 1)nbayes(1,2)   2)adaM1(1,2)     3)adaboost(1,-1) 4) knn(1,2)
-    
-    classifier = 'knn';
+    use_ada = false;
 
     for i=1:num_t_test
         tridx = c1.training(i);
@@ -66,11 +63,10 @@ for j=1:3
         % end Fisher ===========================
 
         % choosing 100 features based on FDR values
-        nf = 50;
         examplesPR = examplesP(:,featrank); 
         examplesSR = examplesS(:,featrank);
-        examplesPS = examplesPR(:,1:nf); 
-        examplesSS = examplesSR(:,1:nf);
+        examplesPS = examplesPR(:,1:100); 
+        examplesSS = examplesSR(:,1:100);
 
         % create train set with 100 features based on examplesPS & examplesSS
         extrain{1,i} = [examplesPS(tridx,:); examplesSS(tridx,:)];
@@ -80,16 +76,21 @@ for j=1:3
         extest{1,i} = [examplesPS(teidx,:); examplesSS(teidx,:)];
         labelstest{1,i} = [labelsP(teidx,:);labelsS(teidx,:)];
 
-        % classify
-        if strcmp(classifier,'adaM1')
-            adb_acc(i) = util_classifier2(extrain{1,i}, extest{1,i}, labelstrain{1,i}, labelstest{1,i}, 'adaM1');
-        elseif strcmp(classifier,'nbayes')
-            adb_acc(i) = util_classifier2(extrain{1,i}, extest{1,i}, labelstrain{1,i}, labelstest{1,i}, 'nbayes');
-        elseif strcmp(classifier,'adaboost')
-            adb_acc(i) = util_classifier2(extrain{1,i}, extest{1,i}, labelstrain{1,i}, labelstest{1,i}, 'adaboost');
-        elseif strcmp(classifier,'knn')
-            adb_acc(i) = util_classifier2(extrain{1,i}, extest{1,i}, labelstrain{1,i}, labelstest{1,i}, 'knn');
-            disp(['TEMP accuracy ', num2str(adb_acc(1,i))]);
+        %==============ADABOOST======================
+        if use_ada
+            model = fitensemble(extrain{1,i}, labelstrain{1,i}, 'AdaBoostM1',120,'Tree');
+            testclass=predict(model,extest{1,i});
+            corrects = sum(testclass == labelstest{1,i});
+            adb_acc(i) = corrects/length(labelstest{1,i});
+            % disp(['pause ...']);
+            % pause
+        else
+            % Bayes
+            [classifier] = trainClassifier(extrain{1,i},labelstrain{1,i},'nbayes');
+            [predictions] = applyClassifier(extest{1,i},classifier);
+            [result,predictedLabels,trace] = summarizePredictions(predictions,classifier,'averageRank',labelstest{1,i});
+            adb_acc(i) = 1- result{1,1};
+            % disp(['temp accuracy ', num2str(adb_acc(i))]);
         end
     end
     avg_acc = sum(adb_acc)/num_t_test;
@@ -101,16 +102,3 @@ end
 mean_all = mean(all_acc);
 disp(['AVERAGE ACC ', num2str(mean_all(1))]);
 disp(['AVERAGE PROCESSING TIME ', num2str(mean_all(2))]);
-
-
-% ROis, 50, AdaM1(50): 86.25% 34.54s [0.8625;0.9625;0.9250;0.725;0.85;0.85]
-% ROis, 100, AdaM1(50): 87.29% 36.21s [0.8625;0.9750;0.8875;0.725;0.90;0.8875]
-% ROis, 100, adaboost(3000): 89.58% 31.55s [0.9;0.9750;0.9375;0.775;0.8875;0.9]
-% ROis, 50, adaboost(3000): 89.17% 31.48s [0.9;1;0.925;0.7125;0.9375;0.875]
-% ROis, 20, adaboost(3000): 87.29% 31.51s [0.875;0.975;0.9375;0.7250;0.8625;0.8625]
-% ROis, 30, adaboost(3000): 89.17% 31.45s [0.9125;1;0.9125;0.7375;0.9125;0.8750]
-% 100, adaboost(3000): 90.21% 73.38s [0.8875;1;0.95;0.8125;0.8750;0.8875]
-
-
-% 30. knn(3) 86.875% 36.21s [0.862500000000000;0.975000000000000;0.925000000000000;0.662500000000000;0.900000000000000;0.887500000000000]
-% 50. knn(7) 89.79% 32.18s [0.887500000000000;0.987500000000000;0.937500000000000;0.787500000000000;0.925000000000000;0.862500000000000]

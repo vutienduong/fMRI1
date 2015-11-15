@@ -15,24 +15,25 @@ for j=1:6
     clearvars -except j file_name all_acc;
     
     % 1:ActiveVoxels, 2:ActiveVoxact, 3:nActive/ROI 4:avgROIVoxel 5:avg(nActive/ROI)
-    use_setting = 5;
+    load(file_name{j});
+    use_setting = 2;
     num_selected_feature = 240; % use for 1,2
     num_per_ROI = 50; % use for 3
     ROIs = {'CALC' 'LIPL' 'LT' 'LTRIA' 'LOPER' 'LIPS' 'LDLPFC'};
-    
     t = cputime;
-    load(file_name{j});
+%     trials=find([info.cond]>0); 
+%     [info1,data1,meta1] = transformIDM_selectTrials(info,data,meta,trials);
     disp(['Complete load : ', file_name{j}]);
     
     
-    if use_setting == 1 % ActiveVoxels
+    if use_setting == 1 % ActiveVoxact
         % this cond is higher accuracy than (>0)
         % >0: 72% (240)
         % >1: 84% (240)
         % (>0 =>voxact => >1) 82%(240)
         [info1,data1,meta1] = activeVoxactCond(info,data,meta,ROIs,num_selected_feature);
         
-    elseif use_setting == 2 % ActiveVoxact
+    elseif use_setting == 2 % ActiveVoxels
         % (>1 =>activeVoxels) thi 6 sub [94 88 94 70 77 83] =>AVG:83.75%
         % (>0 =>activeVoxels) AVG:70%, sub2 la 46%(?)
         % (>0 =>activeVoxels => >1) 6 sub [98 55(?) 89 73 85 85] =>AVG:81%
