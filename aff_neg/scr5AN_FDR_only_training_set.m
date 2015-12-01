@@ -16,6 +16,7 @@ for j=1:6
 
     % seperate P1st and S1st trials
     [info1,data1,meta1]=transformIDM_selectROIVoxels(info1,data1,meta1,{'CALC' 'LIPL' 'LT' 'LTRIA' 'LOPER' 'LIPS' 'LDLPFC'});
+    [info1,data1,meta1] = transformIDM_selectActiveVoxact2(info1,data1,meta1,200);
     [infoP1,dataP1,metaP1]=transformIDM_selectTrials(info1,data1,meta1,find([info1.firstStimulus]=='P'));
     [infoS1,dataS1,metaS1]=transformIDM_selectTrials(info1,data1,meta1,find([info1.firstStimulus]=='S'));
  
@@ -47,7 +48,7 @@ for j=1:6
     
     % labelsP now is affirmative(1), labelsS now is negative(-1)
     labelsP=ones(size(examplesP,1),1);
-    labelsS=ones(size(examplesS,1),1)-2;
+    labelsS=ones(size(examplesS,1),1)+1;
 
     c1 = cvpartition(labelsP,'k',10);
     adb_acc = [];
@@ -55,30 +56,33 @@ for j=1:6
 
     % use Bayes or Ada here
     % 1)nbayes   2)adaM1     3)adaboost
-    classifier = 'adaboost';
+    classifier = 'nbayes';
 
     for i=1:num_t_test
         tridx = c1.training(i);
         teidx = c1.test(i);
 
-        examplesP_train = examplesP(tridx,:);
-        examplesS_train = examplesS(tridx,:);
+%         examplesP_train = examplesP(tridx,:);
+%         examplesS_train = examplesS(tridx,:);
+% 
+%         % Fisher ===========================
+%         numfeat = size(examplesP_train,2);
+%         for ii=1:numfeat
+%             fdr(ii)= Fisher(examplesP_train(:,ii),examplesS_train(:,ii));
+%         end
+%         [fdr,featrank]=sort(fdr,'descend');
+%         % end Fisher ===========================
+% 
+%         % choosing 100 features based on FDR values
+%         nf = 100;
+%         examplesPR = examplesP(:,featrank); 
+%         examplesSR = examplesS(:,featrank);
+%         examplesPS = examplesPR(:,1:nf); 
+%         examplesSS = examplesSR(:,1:nf);
 
-        % Fisher ===========================
-        numfeat = size(examplesP_train,2);
-        for ii=1:numfeat
-            fdr(ii)= Fisher(examplesP_train(:,ii),examplesS_train(:,ii));
-        end
-        [fdr,featrank]=sort(fdr,'descend');
-        % end Fisher ===========================
 
-        % choosing 100 features based on FDR values
-        nf = 100;
-        examplesPR = examplesP(:,featrank); 
-        examplesSR = examplesS(:,featrank);
-        examplesPS = examplesPR(:,1:nf); 
-        examplesSS = examplesSR(:,1:nf);
-
+        examplesPS = examplesP;
+        examplesSS = examplesS;
         % create train set with 100 features based on examplesPS & examplesSS
         extrain{1,i} = [examplesPS(tridx,:); examplesSS(tridx,:)];
         labelstrain{1,i} = [labelsP(tridx,:);labelsS(tridx,:)];

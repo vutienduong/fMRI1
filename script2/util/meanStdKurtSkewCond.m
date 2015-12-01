@@ -1,4 +1,4 @@
-function [examplesPS, examplesSS] =  avg_nActivePerROICondFixed(info,data,meta, ROIs, num_per_ROI)
+function [examplesPS, examplesSS] =  meanStdKurtSkewCond(info,data,meta, ROIs)
 examplesPS = [];
 examplesSS = [];
 
@@ -7,8 +7,7 @@ for i=1:length(ROIs)
     trials=find([info.cond]>1); 
     [info2,data2,meta2] = transformIDM_selectTrials(info,data,meta,trials);
     [info2,data2,meta2] = transformIDM_selectROIVoxels(info2,data2,meta2,ROI);
-    [info2,data2,meta2] = transformIDM_selectActiveVoxact2(info2,data2,meta2,num_per_ROI, [2 3]);
-    [info1,data1,meta1] = transformIDM_avgVoxelSubset(info2,data2,meta2);
+    [info1,data1,meta1] = avgVoxelSubset2(info2,data2,meta2);
     
     % collect the non-noise and non-fixation trials
     [infoP1,dataP1,metaP1]=transformIDM_selectTrials(info1,data1,meta1,find([info1.firstStimulus]=='P'));

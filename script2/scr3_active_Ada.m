@@ -16,8 +16,8 @@ for j=1:6
     
     % 1:ActiveVoxels, 2:ActiveVoxact, 3:nActive/ROI 4:avgROIVoxel 5:avg(nActive/ROI)
     load(file_name{j});
-    use_setting = 2;
-    num_selected_feature = 240; % use for 1,2
+    use_setting = 1;
+    num_selected_feature = 200; % use for 1,2
     num_per_ROI = 50; % use for 3
     ROIs = {'CALC' 'LIPL' 'LT' 'LTRIA' 'LOPER' 'LIPS' 'LDLPFC'};
     t = cputime;
@@ -70,8 +70,8 @@ for j=1:6
     [examplesS3,labelsS3,exInfoS3]=idmToExamples_condLabel(infoS3,dataS3,metaS3);
 
     % combine examples and create labels.  Label 'picture' 1, label 'sentence' 2.
-    examplesP=[examplesP2;examplesP3];
-    examplesS=[examplesS2;examplesS3];
+    examplesP=examplesP3;
+    examplesS=examplesS2;
     labelsP=ones(size(examplesP,1),1);
     labelsS=ones(size(examplesS,1),1)+1;
 

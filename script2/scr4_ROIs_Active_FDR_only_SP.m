@@ -1,13 +1,15 @@
 % for each person , length(file_name)
+% ROIs,250 most active, 100 FDR
 clear; 
 file_name = {'data-starplus-04799-v7', 'data-starplus-04847-v7', 'data-starplus-05710-v7',...
     'data-starplus-04820-v7', 'data-starplus-05675-v7', 'data-starplus-05680-v7'};
 all_acc = [];
-for j=1:6 %2:2:4
+for j=1:6
     clearvars -except j file_name all_acc;
     t = cputime;
     load(file_name{j});
     disp(['Complete load : ', file_name{j}]);
+    test_PS = false;
 
     % collect the non-noise and non-fixation trials
     trials=find([info.cond]>1); 
@@ -15,6 +17,7 @@ for j=1:6 %2:2:4
 
     % seperate P1st and S1st trials
     [info1,data1,meta1]=transformIDM_selectROIVoxels(info1,data1,meta1,{'CALC' 'LIPL' 'LT' 'LTRIA' 'LOPER' 'LIPS' 'LDLPFC'});
+    [info1,data1,meta1] = transformIDM_selectActiveVoxact(info1,data1,meta1,250, [2 3]);
     [infoP1,dataP1,metaP1]=transformIDM_selectTrials(info1,data1,meta1,find([info1.firstStimulus]=='P'));
     [infoS1,dataS1,metaS1]=transformIDM_selectTrials(info1,data1,meta1,find([info1.firstStimulus]=='S'));
  
@@ -31,26 +34,14 @@ for j=1:6 %2:2:4
     [examplesS3,labelsS3,exInfoS3]=idmToExamples_condLabel(infoS3,dataS3,metaS3);
 
     % combine examples and create labels.  Label 'picture' 1, label 'sentence' 2.
-    examplesP=[examplesP2;examplesP3];
-    examplesS=[examplesS2;examplesS3];
+    examplesP= examplesP3;
+    examplesS= examplesS2;
     labelsP=ones(size(examplesP,1),1);
     labelsS=ones(size(examplesS,1),1)+1;
-
-    examples=[examplesP;examplesS];
-    labels=[labelsP;labelsS];
-
-    
 
     c1 = cvpartition(labelsP,'k',10);
     adb_acc = [];
     num_t_test = 10;
-
-    % use Bayes or Ada here
-    % 1)nbayes(1,2)   2)adaM1(1,2)     3)adaboost(1,-1) 4) knn(1,2) 
-    % 5)svm (1,-1) 6)kernel perceptron(1,-1) 7) nn(1,-1): neuronnetwork 
-    
-    classifier = 'nbayes';
-
     for i=1:num_t_test
         tridx = c1.training(i);
         teidx = c1.test(i);
@@ -67,11 +58,10 @@ for j=1:6 %2:2:4
         % end Fisher ===========================
 
         % choosing 100 features based on FDR values
-        nf = 100;
         examplesPR = examplesP(:,featrank); 
         examplesSR = examplesS(:,featrank);
-        examplesPS = examplesPR(:,1:nf); 
-        examplesSS = examplesSR(:,1:nf);
+        examplesPS = examplesPR(:,1:100); 
+        examplesSS = examplesSR(:,1:100);
 
         % create train set with 100 features based on examplesPS & examplesSS
         extrain{1,i} = [examplesPS(tridx,:); examplesSS(tridx,:)];
@@ -81,57 +71,27 @@ for j=1:6 %2:2:4
         extest{1,i} = [examplesPS(teidx,:); examplesSS(teidx,:)];
         labelstest{1,i} = [labelsP(teidx,:);labelsS(teidx,:)];
 
-        % classify
-        if strcmp(classifier,'adaM1')
-            adb_acc(i) = util_classifier2(extrain{1,i}, extest{1,i}, labelstrain{1,i}, labelstest{1,i}, 'adaM1');
-        elseif strcmp(classifier,'nbayes')
-            adb_acc(i) = util_classifier2(extrain{1,i}, extest{1,i}, labelstrain{1,i}, labelstest{1,i}, 'nbayes');
-        elseif strcmp(classifier,'adaboost')
-            adb_acc(i) = util_classifier2(extrain{1,i}, extest{1,i}, labelstrain{1,i}, labelstest{1,i}, 'adaboost');
-        elseif strcmp(classifier,'knn')
-            adb_acc(i) = util_classifier2(extrain{1,i}, extest{1,i}, labelstrain{1,i}, labelstest{1,i}, 'knn');
-            disp(['TEMP accuracy ', num2str(adb_acc(1,i))]);
-        elseif strcmp(classifier,'svm')
-            adb_acc(i) = util_classifier2(extrain{1,i}, extest{1,i}, labelstrain{1,i}, labelstest{1,i}, 'svm');
-            disp(['TEMP accuracy ', num2str(adb_acc(1,i))]);
-        elseif strcmp(classifier,'perce')
-            adb_acc(i) = util_classifier2(extrain{1,i}, extest{1,i}, labelstrain{1,i}, labelstest{1,i}, 'perce');
-            disp(['TEMP accuracy ', num2str(adb_acc(1,i))]);
-        elseif strcmp(classifier,'nn')
-            adb_acc(i) = util_classifier2(extrain{1,i}, extest{1,i}, labelstrain{1,i}, labelstest{1,i}, 'nn');
-            disp(['TEMP accuracy ', num2str(adb_acc(1,i))]);
-        end
+
+        [classifier] = trainClassifier(extrain{1,i},labelstrain{1,i},'nbayes');
+        [predictions] = applyClassifier(extest{1,i},classifier);
+        [result,predictedLabels,trace] = summarizePredictions(predictions,classifier,'averageRank',labelstest{1,i});
+        adb_acc(1,i) = 1- result{1,1};
     end
+    % end Fisher ===========================
     avg_acc = sum(adb_acc)/num_t_test;
     e = cputime - t;
     t = cputime;
     all_acc = [all_acc; avg_acc e];
     disp(['accuracy ', num2str(avg_acc) , ' | processing time ', num2str(e)]);
+    % END 2)=========================
 end
 mean_all = mean(all_acc);
-disp(['AVERAGE ACC ', num2str(mean_all(1))]);
+disp(['AVERAGE ACC', num2str(mean_all(1))]);
 disp(['AVERAGE PROCESSING TIME ', num2str(mean_all(2))]);
 
 
-% ROis, 50, AdaM1(50): 86.25% 34.54s [0.8625;0.9625;0.9250;0.725;0.85;0.85]
-% ROis, 100, AdaM1(50): 87.29% 36.21s [0.8625;0.9750;0.8875;0.725;0.90;0.8875]
-% ROis, 100, adaboost(3000): 89.58% 31.55s [0.9;0.9750;0.9375;0.775;0.8875;0.9]
-% ROis, 50, adaboost(3000): 89.17% 31.48s [0.9;1;0.925;0.7125;0.9375;0.875]
-% ROis, 20, adaboost(3000): 87.29% 31.51s [0.875;0.975;0.9375;0.7250;0.8625;0.8625]
-% ROis, 30, adaboost(3000): 89.17% 31.45s [0.9125;1;0.9125;0.7375;0.9125;0.8750]
-% 100, adaboost(3000): 90.21% 73.38s [0.8875;1;0.95;0.8125;0.8750;0.8875]
+% PS: cond default (2) : 86.67% 5.8396 s
+% PS: cond [2 3] :87.5% 5.811 s
 
-
-% 30. knn(3) 86.875% 36.21s [0.8625;0.9750;0.925;0.6625;0.9;0.8875]
-% 50. knn(7) 89.79% 32.18s [0.8875;0.9875;0.9375;0.7875;0.925;0.8625]
-
-% 50. svm(linear, C=0.5, tol=0.001: 88.75%   40.3887 s [0.8875;0.9875;0.925;0.7125;0.9125;0.90]
-% 50. svm(poly(1,3), C=2, tol=0.001: 85.417%   33.4726 s [0.8;0.95;0.875;0.725;0.9125;0.8625]
-% 50. svm(poly(1,3), C=0.5, tol=0.001: 86.042%   33.4726 s [0.85;0.9625;0.8875;0.725;0.91250;0.825]
-
-% 50. perce(linear, C=2, tol=0.001: 0.75625   32.2688 s [0.85;0.9625;0.8875;0.725;0.91250;0.825]
-% 50. perce(rbf(1), C=0.5, tol=0.001: 0.83542   32.2714
-% 50. perce(rbf(1.5), C=0.5, tol=0.001:  0.84583
-% 50. perce(rbf(0.1), C=0.5, tol=0.001: 100%   32.2324 s
-% 50. perce(poly(1,3), C=0.5, tol=0.001: 0.76667   32.4664 s 
-
+% SP: cond default (2) : 95.83% 5.8266 s
+% SP: cond [2 3] :95.417% 5.798 s

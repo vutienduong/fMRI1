@@ -117,11 +117,5 @@ mean_all = mean(all_acc);
 disp(['AVERAGE ACC', num2str(mean_all(1))]);
 disp(['AVERAGE PROCESSING TIME ', num2str(mean_all(2))]);
 
-% select ROIs, 100 FDR, 15 correlation, 10 comb:  80.417% 45.26s [0.7125;0.98750;0.9125;0.55;0.75;0.9125]
-% select ROIs, 100 FDR, 15 correlation:  84.375% 38.23s [0.8125;0.98750;0.8750;0.65;0.8625;0.8750]
-% select ROIs, 100 FDR, 30 correlation:  86.458% 38.32s [0.8375;0.98750;0.9625;0.625;0.9;0.8750]
-% select ROIs, 50 FDR, 20 correlation:  87.292% 32.3s
-% select ROIs, 100 FDR, 50 correlation:  89.96% 38.72s [0.8750;1;0.9625;0.7;0.925;0.8750]
-% no ROIs, 100 FDR, 50 correlation:  86.45% 84.70s [0.8875;1;0.9375;0.6125;0.8875;0.8625]
 
     
