@@ -1,5 +1,7 @@
 % this script use to test: 
 % calculate [mean std kurtoris skewness] of a ROI
+% after create examples for each subject, use FDR to choose best features
+% (this method only used for single subject classification)
 clear;
 file_name = {'data-starplus-04847-v7', 'data-starplus-04799-v7', 'data-starplus-05710-v7',...
     'data-starplus-04820-v7', 'data-starplus-05675-v7', 'data-starplus-05680-v7'};
@@ -9,11 +11,12 @@ num_subjects = 6;
 N = 20;
 use_avg_nFDR = true;
 create_data = true;
+nFDRFeatures = 50;
 
 if create_data
     % create data (training + test)
     for j=1:num_subjects
-        clearvars -except j file_name examples labels num_subjects N use_avg_nFDR;
+        clearvars -except j file_name examples labels num_subjects N use_avg_nFDR nFDRFeatures;
         % best ROIs
         ROIs = {'CALC' 'LDLPFC' 'LIPL' 'LIPS' 'LOPER'  'LT' 'LTRIA'};
 
@@ -28,6 +31,17 @@ if create_data
 
         % 2. [mean std kurtoris skewness]/ROI
         [examplesP, examplesS] = meanStdKurtSkewCond(info,data,meta, ROIs);
+        
+        % 3. FDR
+        numfeat = size(examplesP,2);
+        for ii=1:numfeat
+            fdr(ii)= Fisher(examplesP(:,ii),examplesS(:,ii));
+        end
+        [fdr,featrank]=sort(fdr,'descend');
+        selectedIndex = featrank(1:nFDRFeatures);
+        examplesP = examplesP(:,selectedIndex);
+        examplesS = examplesS(:,selectedIndex);
+        % end FDR
 
         labelsP=ones(size(examplesP,1),1);
         labelsS=ones(size(examplesS,1),1)+1;
@@ -72,6 +86,4 @@ disp(['Std ', num2str(std(acc))]);
 
 
 % ======================= RESULTS ===============================
-% norm trial: 76
-% norm trial + img: 78
-% norm img: 63.75
+% norm trial + img: 0.67917

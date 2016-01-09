@@ -1,3 +1,7 @@
+load('Core_tensor_Tucker4.mat');
+
+use_FDR = true;
+
 t = cputime;
 half_examples = size(Core,2)/2;
 examples = [];
@@ -15,18 +19,29 @@ end
 examplesP = examples(1:half_examples,:);
 examplesS = examples(half_examples + 1 : half_examples * 2, :);
 
-numfeat = size(examplesP,2);
-for i=1:numfeat
-    fdr(i)= Fisher(examplesP(:,i),examplesS(:,i));
+if use_FDR
+    numfeat = size(examplesP,2);
+    for i=1:numfeat
+        fdr(i)= Fisher(examplesP(:,i),examplesS(:,i));
+    end
+
+    [fdr,featrank]=sort(fdr,'descend');
+    examplesPR = examplesP(:,featrank); 
+    examplesSR = examplesS(:,featrank);
+else
+    examplesPR = examplesP;
+    examplesSR = examplesS;
 end
 
-[fdr,featrank]=sort(fdr,'descend');
-examplesPR = examplesP(:,featrank); 
-examplesSR = examplesS(:,featrank);
-
 avg_acc = [];
-select_num = 100;
-for numOfFeature = 1:select_num
+if use_FDR
+    select_num = 100;
+    step = 1;
+else
+    select_num = size(examplesP,2);
+    step = select_num;
+end
+for numOfFeature = 1:step:select_num
     examplesPS = examplesPR(:,1:numOfFeature); 
     examplesSS = examplesSR(:,1:numOfFeature);
     examples = [examplesPS; examplesSS];
@@ -59,4 +74,4 @@ for numOfFeature = 1:select_num
 end
 plot(1:select_num, avg_acc);
 e = cputime - t;
-disp(['accuracy ', num2str(avg_acc(9)),num2str(avg_acc(3)),num2str(avg_acc(4)) , ' | processing time ', num2str(e)]);
+% disp(['accuracy ', num2str(avg_acc(9)),num2str(avg_acc(3)),num2str(avg_acc(4)) , ' | processing time ', num2str(e)]);

@@ -17,7 +17,7 @@ for j=1:6
     % 1:ActiveVoxels, 2:ActiveVoxact, 3:nActive/ROI 4:avgROIVoxel 5:avg(nActive/ROI)
     load(file_name{j});
     use_setting = 1;
-    num_selected_feature = 200; % use for 1,2
+    num_selected_feature = 100; % use for 1,2
     num_per_ROI = 50; % use for 3
     ROIs = {'CALC' 'LIPL' 'LT' 'LTRIA' 'LOPER' 'LIPS' 'LDLPFC'};
     t = cputime;
@@ -122,6 +122,18 @@ mean_all = mean(all_acc);
 disp(['AVERAGE ACC', num2str(mean_all(1))]);
 disp(['AVERAGE PROCESSING TIME ', num2str(mean_all(2))]);
 
+% use AUC in mri_computeTvalues2: in file
+% "transformIDM_selectActiveVoxels", line
+% "[sortedPValues{c},sortedVoxels{c}] = sort(results{1,c}...
+% - descend: 85%, [0.925 0.850 0.850 0.900 0.800 0.775]
+% - ascend : 93%, [0.975 0.775 1.000 0.900 0.925 1.000]
 
+% use Fisher in mri_computeTvalues2
+% - descend: 100 features: 94.583%, [0.975 0.8 1 0.925 0.975 1]
+%            200 features: 95.417%, [0.975 0.825 1 0.95 0.975 1]
+% - ascend : 73.33% (WRONG)
 
-
+% use abs(AUC) in mri_computeTvalues2
+% - descend: 100 features: 94.583%, [0.975 0.850 1 0.900 0.95 1]
+%            200 features: 95.833%, [1 0.825 1 0.975 0.95 1]
+% - ascend : 70% (WRONG)

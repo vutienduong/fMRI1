@@ -1,12 +1,14 @@
 % tinh FDR cho ca train va test cung luc
 % vars for global (whole program)
+load('Core_tensor_Tucker5.mat');
+Core = Core5;
 t = cputime;
 half_examples = size(Core,2)/2;
 examples = [];
 num_subjects = half_examples/2;
 
 % FALSE: use all features
-use_FDR = true;
+use_FDR = false;
 
 % FALSE: use leave one example
 use_L1Subject = false;
